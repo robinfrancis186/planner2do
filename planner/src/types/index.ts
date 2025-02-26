@@ -1,6 +1,13 @@
 export type TaskStatus = 'NotStarted' | 'Pending' | 'StartedWorking' | 'Completed';
 export type TaskPriority = 'Low' | 'Medium' | 'High';
 
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -11,6 +18,7 @@ export interface Task {
   pageId: string;
   createdAt: string;
   imageUrl?: string;
+  subtasks: SubTask[];
 }
 
 export interface Page {
