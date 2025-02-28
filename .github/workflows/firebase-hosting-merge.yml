@@ -27,4 +27,3 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLANNER2DO }}'
           channelId: live
           projectId: planner2do
-          entryPoint: './planner'

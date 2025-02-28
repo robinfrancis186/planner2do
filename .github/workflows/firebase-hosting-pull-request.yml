@@ -28,4 +28,3 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLANNER2DO }}'
           projectId: planner2do
-          entryPoint: './planner'
