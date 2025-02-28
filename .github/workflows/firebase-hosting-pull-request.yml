@@ -23,6 +23,7 @@ jobs:
           cache-dependency-path: './planner/package-lock.json'
       - run: npm ci
       - run: npm run build
+      - run: cp -r dist ../dist
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'

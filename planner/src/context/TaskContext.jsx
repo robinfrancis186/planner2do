@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import dbService from '../services/db';
+import { usePageContext } from './PageContext';
 
 // Create the context
 const TaskContext = createContext();
@@ -18,6 +19,7 @@ export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { selectedPage } = usePageContext();
 
   useEffect(() => {
     const initializeDB = async () => {
@@ -36,12 +38,38 @@ export const TaskProvider = ({ children }) => {
     initializeDB();
   }, []);
 
+  useEffect(() => {
+    if (selectedPage) {
+      const loadPageTasks = async () => {
+        try {
+          setLoading(true);
+          const pageTasks = await dbService.getTasksByPage(selectedPage.id);
+          setTasks(pageTasks);
+        } catch (err) {
+          setError('Failed to load page tasks: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadPageTasks();
+    }
+  }, [selectedPage]);
+
   const addTask = async (newTask) => {
     try {
       setLoading(true);
-      await dbService.addTask(newTask);
-      const updatedTasks = await dbService.getAllTasks();
-      setTasks(updatedTasks);
+      const taskToAdd = {
+        ...newTask,
+        pageId: selectedPage?.id,
+        status: newTask.status || 'NotStarted',
+        priority: newTask.priority || 'Medium',
+        subtasks: []
+      };
+      
+      const addedTask = await dbService.addTask(taskToAdd);
+      setTasks(prevTasks => [...prevTasks, addedTask]);
+      return addedTask;
     } catch (err) {
       setError('Failed to add task: ' + err.message);
       throw err;
@@ -50,12 +78,22 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const updateTask = async (taskId, updatedTask) => {
+  const updateTask = async (taskId, updatedFields) => {
     try {
       setLoading(true);
-      await dbService.updateTask({ ...updatedTask, id: taskId });
-      const updatedTasks = await dbService.getAllTasks();
-      setTasks(updatedTasks);
+      const taskToUpdate = tasks.find(t => t.id === taskId);
+      if (!taskToUpdate) throw new Error('Task not found');
+
+      const updatedTask = {
+        ...taskToUpdate,
+        ...updatedFields
+      };
+
+      await dbService.updateTask(updatedTask);
+      setTasks(prevTasks => 
+        prevTasks.map(task => task.id === taskId ? updatedTask : task)
+      );
+      return updatedTask;
     } catch (err) {
       setError('Failed to update task: ' + err.message);
       throw err;
@@ -68,8 +106,7 @@ export const TaskProvider = ({ children }) => {
     try {
       setLoading(true);
       await dbService.deleteTask(taskId);
-      const updatedTasks = await dbService.getAllTasks();
-      setTasks(updatedTasks);
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     } catch (err) {
       setError('Failed to delete task: ' + err.message);
       throw err;
@@ -86,8 +123,10 @@ export const TaskProvider = ({ children }) => {
       
       const updatedTask = { ...task, imageUrl };
       await dbService.updateTask(updatedTask);
-      const updatedTasks = await dbService.getAllTasks();
-      setTasks(updatedTasks);
+      setTasks(prevTasks => 
+        prevTasks.map(t => t.id === taskId ? updatedTask : t)
+      );
+      return updatedTask;
     } catch (err) {
       setError('Failed to upload image: ' + err.message);
       throw err;
@@ -96,15 +135,15 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const getTasksByStatus = async (status) => {
+  const changeTaskStatus = async (taskId, newStatus) => {
     try {
-      setLoading(true);
-      return await dbService.getTasksByStatus(status);
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) throw new Error('Task not found');
+
+      return await updateTask(taskId, { status: newStatus });
     } catch (err) {
-      setError('Failed to get tasks by status: ' + err.message);
+      setError('Failed to change task status: ' + err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -119,7 +158,7 @@ export const TaskProvider = ({ children }) => {
     updateTask,
     deleteTask,
     uploadTaskImage,
-    getTasksByStatus,
+    changeTaskStatus,
     clearError
   };
 
