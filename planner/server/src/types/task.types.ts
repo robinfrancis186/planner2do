@@ -4,8 +4,8 @@ import { Document } from 'mongoose';
 export interface ITask extends Document {
   title: string;
   description?: string;
-  status: 'not-started' | 'in-progress' | 'completed' | 'with-issues';
-  priority: 'low' | 'medium' | 'high';
+  status: TaskStatus;
+  priority: TaskPriority;
   dueDate?: Date;
   assignedTo?: string;
   createdBy: string;
@@ -15,11 +15,14 @@ export interface ITask extends Document {
   updatedAt: Date;
 }
 
+export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'with-issues';
+export type TaskPriority = 'low' | 'medium' | 'high';
+
 export interface CreateTaskDto {
   title: string;
   description?: string;
-  status?: 'not-started' | 'in-progress' | 'completed' | 'with-issues';
-  priority?: 'low' | 'medium' | 'high';
+  status?: TaskStatus;
+  priority?: TaskPriority;
   dueDate?: Date;
   assignedTo?: string;
   pageId?: string;
@@ -29,16 +32,16 @@ export interface UpdateTaskDto extends Partial<CreateTaskDto> {
   imageUrl?: string;
 }
 
-export interface AuthRequest extends Request {
-  userId?: string;
+export interface TaskRequest extends Request {
+  userId: string;
   file?: Express.Multer.File;
 }
 
 export interface TaskQuery {
-  createdBy?: string;
+  createdBy: string;
   pageId?: string;
-  status?: string;
-  priority?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
   search?: string;
   $or?: Array<{ [key: string]: RegExp }>;
 } 
