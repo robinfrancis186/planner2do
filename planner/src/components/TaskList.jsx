@@ -1,103 +1,92 @@
 import React from 'react';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 
-const TaskList = ({ title, tasks, onEdit, onDelete, status }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'NotStarted':
-        return 'bg-gray-100';
-      case 'Pending':
-        return 'bg-yellow-100';
-      case 'StartedWorking':
-        return 'bg-blue-100';
-      case 'Completed':
-        return 'bg-green-100';
-      default:
-        return 'bg-gray-100';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
+const TaskList = ({ tasks, onEdit, onDelete }) => {
+  const getPriorityClass = (priority) => {
     switch (priority) {
       case 'High':
-        return 'text-red-600';
+        return 'priority-high';
       case 'Medium':
-        return 'text-yellow-600';
+        return 'priority-medium';
       case 'Low':
-        return 'text-green-600';
+        return 'priority-low';
       default:
-        return 'text-gray-600';
+        return 'priority-medium';
     }
   };
 
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-4 text-gray-500">
+        No tasks in this column
+      </div>
+    );
+  }
+
   return (
-    <div className={`p-4 rounded-lg ${getStatusColor(status)}`}>
-      <h3 className="text-lg font-semibold mb-4">{title}</h3>
-      <div className="space-y-3">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-medium text-gray-900">{task.title}</h4>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => onEdit(task)}
-                  className="text-blue-500 hover:text-blue-600"
-                >
-                  <FaEdit />
-                </button>
-                <button
-                  onClick={() => onDelete(task.id)}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  <FaTrash />
-                </button>
-              </div>
+    <div className="space-y-3">
+      {tasks.map((task) => (
+        <div key={task.id} className="task-card">
+          <div className="task-header">
+            <h3 className="task-title">{task.title}</h3>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => onEdit(task)}
+                className="text-blue-500 hover:text-blue-600 transition-colors"
+                title="Edit task"
+              >
+                <FaEdit />
+              </button>
+              <button
+                onClick={() => onDelete(task.id)}
+                className="text-red-500 hover:text-red-600 transition-colors"
+                title="Delete task"
+              >
+                <FaTrash />
+              </button>
             </div>
-            
-            {task.description && (
-              <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-            )}
+          </div>
+          
+          {task.description && (
+            <p className="task-description">{task.description}</p>
+          )}
 
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className={`text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                {task.priority}
+          <div className="flex items-center gap-3 mb-3">
+            <span className={`task-priority ${getPriorityClass(task.priority)}`}>
+              {task.priority}
+            </span>
+            {task.dueDate && (
+              <span className="text-sm text-gray-500">
+                Due: {new Date(task.dueDate).toLocaleDateString()}
               </span>
-              {task.dueDate && (
-                <span className="text-xs text-gray-500">
-                  Due: {new Date(task.dueDate).toLocaleDateString()}
-                </span>
-              )}
-            </div>
+            )}
+          </div>
 
-            {task.imageUrl && (
+          {task.imageUrl && (
+            <div className="mb-3">
               <img
                 src={task.imageUrl}
                 alt={task.title}
-                className="mt-2 rounded-md max-h-24 object-cover"
+                className="rounded-lg w-full h-32 object-cover"
               />
-            )}
+            </div>
+          )}
 
-            {task.subtasks && task.subtasks.length > 0 && (
-              <div className="mt-2">
-                <h5 className="text-sm font-medium text-gray-700 mb-1">Subtasks</h5>
-                <ul className="text-sm text-gray-600 list-disc list-inside">
-                  {task.subtasks.map((subtask, index) => (
-                    <li key={index}>{subtask.title}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        ))}
-        {tasks.length === 0 && (
-          <div className="text-center py-4 text-gray-500 text-sm">
-            No tasks in this column
-          </div>
-        )}
-      </div>
+          {task.subtasks && task.subtasks.length > 0 && (
+            <div className="border-t border-gray-100 pt-3">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Subtasks</h4>
+              <ul className="space-y-1">
+                {task.subtasks.map((subtask, index) => (
+                  <li key={index} className="text-sm text-gray-600 flex items-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span>
+                    {subtask.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 };
