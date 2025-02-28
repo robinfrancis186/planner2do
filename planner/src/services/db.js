@@ -1,5 +1,5 @@
 const DB_NAME = 'taskPlannerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const TASK_STORE = 'tasks';
 
 class DatabaseService {
@@ -8,9 +8,24 @@ class DatabaseService {
     this.initPromise = null;
   }
 
+  async deleteDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
   async init() {
     if (this.initPromise) {
       return this.initPromise;
+    }
+
+    try {
+      // Try to delete existing database first
+      await this.deleteDatabase();
+    } catch (error) {
+      console.warn('Error deleting database:', error);
     }
 
     this.initPromise = new Promise((resolve, reject) => {
@@ -27,12 +42,20 @@ class DatabaseService {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-        if (!db.objectStoreNames.contains(TASK_STORE)) {
-          const store = db.createObjectStore(TASK_STORE, { keyPath: 'id' });
-          store.createIndex('status', 'status', { unique: false });
-          store.createIndex('pageId', 'pageId', { unique: false });
-          store.createIndex('priority', 'priority', { unique: false });
+        
+        // Delete old object store if it exists
+        if (db.objectStoreNames.contains(TASK_STORE)) {
+          db.deleteObjectStore(TASK_STORE);
         }
+
+        // Create new object store with correct schema
+        const store = db.createObjectStore(TASK_STORE, { keyPath: 'id' });
+        
+        // Add indexes
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('pageId', 'pageId', { unique: false });
+        store.createIndex('priority', 'priority', { unique: false });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
       };
     });
 
@@ -53,7 +76,7 @@ class DatabaseService {
       const request = store.getAll();
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || []);
     });
   }
 
@@ -63,25 +86,24 @@ class DatabaseService {
       const transaction = this.db.transaction([TASK_STORE], 'readwrite');
       const store = transaction.objectStore(TASK_STORE);
       
-      // Generate a unique ID if not provided
-      if (!task.id) {
-        task.id = Date.now().toString();
-      }
-      
-      // Add createdAt if not present
-      if (!task.createdAt) {
-        task.createdAt = new Date().toISOString();
-      }
+      // Ensure task has all required fields with correct types
+      const taskToAdd = {
+        id: task.id || Date.now().toString(),
+        title: task.title || '',
+        description: task.description || '',
+        status: task.status || 'NotStarted',
+        priority: task.priority || 'Medium',
+        pageId: task.pageId || null,
+        createdAt: task.createdAt || new Date().toISOString(),
+        dueDate: task.dueDate || null,
+        imageUrl: task.imageUrl || null,
+        subtasks: Array.isArray(task.subtasks) ? task.subtasks : []
+      };
 
-      // Initialize empty subtasks array if not present
-      if (!task.subtasks) {
-        task.subtasks = [];
-      }
-
-      const request = store.add(task);
+      const request = store.add(taskToAdd);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(task);
+      request.onsuccess = () => resolve(taskToAdd);
     });
   }
 
@@ -90,10 +112,21 @@ class DatabaseService {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([TASK_STORE], 'readwrite');
       const store = transaction.objectStore(TASK_STORE);
-      const request = store.put(task);
+
+      // Ensure all required fields are present
+      const taskToUpdate = {
+        ...task,
+        id: task.id,
+        title: task.title || '',
+        status: task.status || 'NotStarted',
+        priority: task.priority || 'Medium',
+        subtasks: Array.isArray(task.subtasks) ? task.subtasks : []
+      };
+
+      const request = store.put(taskToUpdate);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(task);
+      request.onsuccess = () => resolve(taskToUpdate);
     });
   }
 
@@ -118,7 +151,7 @@ class DatabaseService {
       const request = index.getAll(status);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || []);
     });
   }
 
@@ -131,7 +164,7 @@ class DatabaseService {
       const request = index.getAll(pageId);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || []);
     });
   }
 }

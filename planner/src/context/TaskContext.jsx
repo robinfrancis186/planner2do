@@ -21,9 +21,13 @@ export const TaskProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { selectedPage } = usePageContext();
 
+  const clearError = () => setError(null);
+
   useEffect(() => {
     const initializeDB = async () => {
       try {
+        setError(null);
+        setLoading(true);
         await dbService.init();
         const storedTasks = await dbService.getAllTasks();
         setTasks(storedTasks);
@@ -42,11 +46,13 @@ export const TaskProvider = ({ children }) => {
     if (selectedPage) {
       const loadPageTasks = async () => {
         try {
+          setError(null);
           setLoading(true);
           const pageTasks = await dbService.getTasksByPage(selectedPage.id);
           setTasks(pageTasks);
         } catch (err) {
           setError('Failed to load page tasks: ' + err.message);
+          console.error('Failed to load page tasks:', err);
         } finally {
           setLoading(false);
         }
@@ -58,20 +64,33 @@ export const TaskProvider = ({ children }) => {
 
   const addTask = async (newTask) => {
     try {
+      setError(null);
       setLoading(true);
+      
+      if (!newTask.title) {
+        throw new Error('Task title is required');
+      }
+
       const taskToAdd = {
-        ...newTask,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        title: newTask.title,
+        description: newTask.description || '',
         pageId: selectedPage?.id,
         status: newTask.status || 'NotStarted',
         priority: newTask.priority || 'Medium',
-        subtasks: []
+        dueDate: newTask.dueDate || null,
+        imageUrl: newTask.imageUrl || null,
+        subtasks: Array.isArray(newTask.subtasks) ? newTask.subtasks : []
       };
       
       const addedTask = await dbService.addTask(taskToAdd);
       setTasks(prevTasks => [...prevTasks, addedTask]);
       return addedTask;
     } catch (err) {
-      setError('Failed to add task: ' + err.message);
+      const errorMessage = 'Failed to add task: ' + err.message;
+      setError(errorMessage);
+      console.error(errorMessage, err);
       throw err;
     } finally {
       setLoading(false);
@@ -80,13 +99,21 @@ export const TaskProvider = ({ children }) => {
 
   const updateTask = async (taskId, updatedFields) => {
     try {
+      setError(null);
       setLoading(true);
+      
       const taskToUpdate = tasks.find(t => t.id === taskId);
-      if (!taskToUpdate) throw new Error('Task not found');
+      if (!taskToUpdate) {
+        throw new Error('Task not found');
+      }
 
       const updatedTask = {
         ...taskToUpdate,
-        ...updatedFields
+        ...updatedFields,
+        id: taskId, // Ensure ID doesn't change
+        subtasks: Array.isArray(updatedFields.subtasks) 
+          ? updatedFields.subtasks 
+          : taskToUpdate.subtasks || []
       };
 
       await dbService.updateTask(updatedTask);
@@ -95,7 +122,9 @@ export const TaskProvider = ({ children }) => {
       );
       return updatedTask;
     } catch (err) {
-      setError('Failed to update task: ' + err.message);
+      const errorMessage = 'Failed to update task: ' + err.message;
+      setError(errorMessage);
+      console.error(errorMessage, err);
       throw err;
     } finally {
       setLoading(false);
@@ -104,11 +133,14 @@ export const TaskProvider = ({ children }) => {
 
   const deleteTask = async (taskId) => {
     try {
+      setError(null);
       setLoading(true);
       await dbService.deleteTask(taskId);
       setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
     } catch (err) {
-      setError('Failed to delete task: ' + err.message);
+      const errorMessage = 'Failed to delete task: ' + err.message;
+      setError(errorMessage);
+      console.error(errorMessage, err);
       throw err;
     } finally {
       setLoading(false);
@@ -147,19 +179,17 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const clearError = () => setError(null);
-
   // Value to be provided by the context
   const value = {
     tasks,
     loading,
     error,
+    clearError,
     addTask,
     updateTask,
     deleteTask,
     uploadTaskImage,
-    changeTaskStatus,
-    clearError
+    changeTaskStatus
   };
 
   return (

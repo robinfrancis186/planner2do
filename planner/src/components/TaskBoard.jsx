@@ -1,352 +1,159 @@
-import React, { useState } from 'react';
-import TaskColumn from './TaskColumn';
-import TaskDetails from './TaskDetails';
+import React, { useState, useCallback } from 'react';
 import { useTaskContext } from '../context/TaskContext';
 import { usePageContext } from '../context/PageContext';
-import { FaImage } from 'react-icons/fa';
-
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center h-64">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-  </div>
-);
-
-const ErrorMessage = ({ message, onRetry }) => (
-  <div className="flex flex-col items-center justify-center h-64 text-center">
-    <p className="text-red-500 mb-4">{message}</p>
-    <button
-      onClick={onRetry}
-      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-    >
-      Retry
-    </button>
-  </div>
-);
+import TaskList from './TaskList';
+import TaskModal from './TaskModal';
+import ErrorBoundary from './ErrorBoundary';
+import { toast } from 'react-toastify';
 
 const TaskBoard = () => {
-  const { tasks, loading, error, addTask, clearError } = useTaskContext();
+  const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
   const { selectedPage } = usePageContext();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
     status: 'NotStarted',
     priority: 'Medium',
-    dueDate: '',
-    imageUrl: ''
+    dueDate: null,
+    imageUrl: null,
+    subtasks: []
   });
-  const [previewImage, setPreviewImage] = useState(null);
 
-  // If no page is selected, show a message
-  if (!selectedPage) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100%', 
-        padding: '2rem' 
-      }}>
-        <div style={{ 
-          textAlign: 'center', 
-          maxWidth: '400px' 
-        }}>
-          <h2 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 'bold', 
-            marginBottom: '1rem' 
-          }}>No Page Selected</h2>
-          <p style={{ color: '#6b7280' }}>
-            Please select a page from the sidebar or create a new one to get started.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleModalClose = useCallback(() => {
+    setIsModalOpen(false);
+    setEditingTask(null);
+    setNewTask({
+      title: '',
+      description: '',
+      status: 'NotStarted',
+      priority: 'Medium',
+      dueDate: null,
+      imageUrl: null,
+      subtasks: []
+    });
+  }, []);
 
-  // Filter tasks for the selected page
-  const pageTasks = tasks.filter(task => task.pageId === selectedPage.id);
-
-  // Group tasks by status
-  const tasksByStatus = {
-    NotStarted: pageTasks.filter(task => task.status === 'NotStarted'),
-    Pending: pageTasks.filter(task => task.status === 'Pending'),
-    StartedWorking: pageTasks.filter(task => task.status === 'StartedWorking'),
-    Completed: pageTasks.filter(task => task.status === 'Completed'),
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewTask({ ...newTask, [name]: value });
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result);
-        setNewTask({ ...newTask, imageUrl: reader.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAddTask = async (e) => {
-    e.preventDefault();
+  const handleAddTask = async (taskData) => {
     try {
-      await addTask({
-        ...newTask,
+      if (!selectedPage) {
+        toast.error('Please select a page first');
+        return;
+      }
+
+      const task = {
+        ...taskData,
         pageId: selectedPage.id
-      });
-      setNewTask({
-        title: '',
-        description: '',
-        status: 'NotStarted',
-        priority: 'Medium',
-        dueDate: '',
-        imageUrl: ''
-      });
-      setPreviewImage(null);
-      setShowAddModal(false);
+      };
+
+      await addTask(task);
+      toast.success('Task added successfully');
+      handleModalClose();
     } catch (err) {
-      console.error('Failed to add task:', err);
+      toast.error(err.message);
+      console.error('Error adding task:', err);
     }
   };
 
-  const handleOpenTaskDetails = (task) => {
-    setSelectedTask(task);
+  const handleUpdateTask = async (taskId, updatedData) => {
+    try {
+      await updateTask(taskId, updatedData);
+      toast.success('Task updated successfully');
+      handleModalClose();
+    } catch (err) {
+      toast.error(err.message);
+      console.error('Error updating task:', err);
+    }
   };
 
-  const handleCloseTaskDetails = () => {
-    setSelectedTask(null);
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteTask(taskId);
+      toast.success('Task deleted successfully');
+    } catch (err) {
+      toast.error(err.message);
+      console.error('Error deleting task:', err);
+    }
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
+  const notStartedTasks = tasks.filter(task => task.status === 'NotStarted');
+  const pendingTasks = tasks.filter(task => task.status === 'Pending');
+  const inProgressTasks = tasks.filter(task => task.status === 'StartedWorking');
+  const completedTasks = tasks.filter(task => task.status === 'Completed');
 
   if (error) {
-    return (
-      <ErrorMessage 
-        message={error} 
-        onRetry={() => {
-          clearError();
-          window.location.reload();
-        }} 
-      />
-    );
+    toast.error(error);
   }
 
   return (
-    <div className="task-board">
-      <div className="board-header">
-        <h2 className="board-title">{selectedPage.name}</h2>
-        <div className="board-stats">
-          <span style={{
-            display: 'inline-block',
-            fontSize: '0.75rem',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            padding: '0.25rem 0.5rem',
-            borderRadius: '9999px'
-          }}>
-            {pageTasks.length} {pageTasks.length === 1 ? 'task' : 'tasks'}
-          </span>
+    <ErrorBoundary>
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">
+            {selectedPage ? selectedPage.title : 'Task Board'}
+          </h1>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            disabled={!selectedPage}
+          >
+            Add Task
+          </button>
         </div>
-        <button 
-          className="add-task-btn"
-          onClick={() => setShowAddModal(true)}
-        >
-          Add Task
-        </button>
-      </div>
 
-      <div className="columns-container">
-        <TaskColumn 
-          title="Not Started" 
-          status="NotStarted" 
-          tasks={tasksByStatus.NotStarted}
-          onOpenDetails={handleOpenTaskDetails}
-        />
-        <TaskColumn 
-          title="Pending" 
-          status="Pending" 
-          tasks={tasksByStatus.Pending}
-          onOpenDetails={handleOpenTaskDetails}
-        />
-        <TaskColumn 
-          title="In Progress" 
-          status="StartedWorking" 
-          tasks={tasksByStatus.StartedWorking}
-          onOpenDetails={handleOpenTaskDetails}
-        />
-        <TaskColumn 
-          title="Completed" 
-          status="Completed" 
-          tasks={tasksByStatus.Completed}
-          onOpenDetails={handleOpenTaskDetails}
-        />
-      </div>
-
-      {/* Add Task Modal */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              marginBottom: '1.5rem'
-            }}>Add New Task</h2>
-            <form onSubmit={handleAddTask}>
-              <div className="form-group">
-                <label htmlFor="title" className="form-label">Title</label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={newTask.title}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="description" className="form-label">Description</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={newTask.description}
-                  onChange={handleInputChange}
-                  className="form-textarea"
-                  rows="3"
-                />
-              </div>
-              
-              {/* Image Upload Field */}
-              <div className="form-group">
-                <label htmlFor="taskImage" className="form-label">
-                  Add Image (optional)
-                </label>
-                <div className="image-upload-container">
-                  <input
-                    type="file"
-                    id="taskImage"
-                    name="taskImage"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="form-input"
-                    style={{ display: 'none' }}
-                  />
-                  <label 
-                    htmlFor="taskImage" 
-                    className="image-upload-label"
-                  >
-                    <FaImage style={{ marginRight: '0.5rem' }} />
-                    Choose Image
-                  </label>
-                  {previewImage && (
-                    <div className="image-preview">
-                      <img 
-                        src={previewImage} 
-                        alt="Task preview" 
-                        style={{ 
-                          maxWidth: '100%', 
-                          maxHeight: '150px',
-                          objectFit: 'contain',
-                          borderRadius: '0.375rem',
-                          border: '1px solid #e5e7eb'
-                        }} 
-                      />
-                      <button
-                        type="button"
-                        className="remove-image-btn"
-                        onClick={() => {
-                          setPreviewImage(null);
-                          setNewTask({ ...newTask, imageUrl: '' });
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="status" className="form-label">Status</label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={newTask.status}
-                    onChange={handleInputChange}
-                    className="form-select"
-                  >
-                    <option value="NotStarted">Not Started</option>
-                    <option value="Pending">Pending</option>
-                    <option value="StartedWorking">In Progress</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="priority" className="form-label">Priority</label>
-                  <select
-                    id="priority"
-                    name="priority"
-                    value={newTask.priority}
-                    onChange={handleInputChange}
-                    className="form-select"
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="dueDate" className="form-label">Due Date</label>
-                <input
-                  type="date"
-                  id="dueDate"
-                  name="dueDate"
-                  value={newTask.dueDate}
-                  onChange={handleInputChange}
-                  className="form-input"
-                />
-              </div>
-              
-              <div className="actions-container">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                >
-                  Add Task
-                </button>
-              </div>
-            </form>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <TaskList
+              title="Not Started"
+              tasks={notStartedTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              status="NotStarted"
+            />
+            <TaskList
+              title="Pending"
+              tasks={pendingTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              status="Pending"
+            />
+            <TaskList
+              title="In Progress"
+              tasks={inProgressTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              status="StartedWorking"
+            />
+            <TaskList
+              title="Completed"
+              tasks={completedTasks}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              status="Completed"
+            />
+          </div>
+        )}
 
-      {/* Task Details Modal */}
-      {selectedTask && (
-        <TaskDetails 
-          task={selectedTask} 
-          onClose={handleCloseTaskDetails} 
+        <TaskModal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onSubmit={editingTask ? 
+            (data) => handleUpdateTask(editingTask.id, data) : 
+            handleAddTask}
+          task={editingTask || newTask}
         />
-      )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

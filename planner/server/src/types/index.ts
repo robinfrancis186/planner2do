@@ -1,18 +1,18 @@
+import { Request } from 'express';
+
 export type TaskStatus = 'NotStarted' | 'Pending' | 'StartedWorking' | 'Completed';
 export type TaskPriority = 'Low' | 'Medium' | 'High';
-
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-  };
-}
 
 export interface TokenPayload {
   id: string;
   email: string;
   name: string;
+}
+
+export interface AuthRequest extends Request {
+  user?: TokenPayload;
+  body: any;
+  params: any;
 }
 
 export interface CreateTaskDto {
