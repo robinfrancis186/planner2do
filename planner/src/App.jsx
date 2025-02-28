@@ -5,6 +5,7 @@ import { TaskProvider } from './context/TaskContext';
 import { PageProvider } from './context/PageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
+// Trigger deployment to Firebase Hosting
 function App() {
   return (
     <Router>
