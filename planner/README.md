@@ -2,7 +2,7 @@
 
 TaskPlanner is a modern, responsive Progressive Web App (PWA) designed to help users manage their workload and boost productivity. It allows users to organize tasks into pages and track their completion status with an intuitive drag-and-drop interface.
 
-![TaskPlanner Screenshot](screenshot.png)
+A project screenshot has not yet been included in this repository.
 
 ## Features
 
@@ -220,7 +220,7 @@ Build outputs will be in the `planner-desktop/dist` directory.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+No repository-wide LICENSE file is included. This documentation does not grant a new software license. Existing third-party licenses and notices continue to apply to their respective code, datasets, artwork, and trademarks. Contact the maintainers to clarify permissions before redistributing project-owned material.
 
 ## Support
 
